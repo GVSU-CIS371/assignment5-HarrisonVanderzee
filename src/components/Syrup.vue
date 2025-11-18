@@ -1,16 +1,19 @@
 <template>
-  <div class="syrup" v-if="currentSyrup?.id === 's1'" :style="{backgroundColor: syrups[0].color}"></div>
-  <div class="syrup" v-if="currentSyrup?.id === 's2'" :style="{backgroundColor: syrups[1].color}"></div>
-  <div class="syrup" v-if="currentSyrup?.id === 's3'" :style="{backgroundColor: syrups[2].color}"></div>
-  <div class="syrup" v-if="currentSyrup?.id === 's4'" :style="{backgroundColor: syrups[3].color}"></div>
+  <div class="syrup" :style="{backgroundColor: fillColor}"></div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { syrupStore } from "../stores/beverage";
 const syrupState = syrupStore();
-const currentSyrup = computed(() => syrupState.currentSyrup);
 const syrups = syrupState.syrups;
+const currentSyrup = computed(() => syrupState.currentSyrup);
+
+const fillColor = computed(() => {
+  if (currentSyrup.value && currentSyrup.value.color) return currentSyrup.value.color;
+  if (syrups && syrups.length > 0) return syrups[0].color;
+  return '#c6c6c6';
+});
 </script>
 <style lang="scss" scoped>
 .syrup {

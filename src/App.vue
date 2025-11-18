@@ -87,8 +87,8 @@
 
 <script setup lang="ts">
 import Beverage from "./components/Beverage.vue";
-import { ref, computed } from 'vue'
-import { tempStore, baseStore, creamerStore, syrupStore, savedBeveragesStore } from "./stores/beverage";
+import { ref, computed, onMounted } from 'vue'
+import { tempStore, baseStore, creamerStore, syrupStore, savedBeveragesStore, pushBeverageToFirestore, fetchBeveragesFromFirestore } from "./stores/beverage";
 
 const tempState = tempStore();
 const baseState = baseStore();
@@ -96,22 +96,57 @@ const creamerState = creamerStore();
 const syrupState = syrupStore();
 const savedBeveragesState = savedBeveragesStore();
 
+// load collections and saved beverages when app mounts
+onMounted(async () => {
+  try {
+    await Promise.all([
+      baseState.loadBases(),
+      creamerState.loadCreamers(),
+      syrupState.loadSyrups(),
+    ]);
+
+  const fetched: any[] = await fetchBeveragesFromFirestore();
+    // replace local saved beverages with fetched list
+    savedBeveragesState.beverages = fetched.map(b => ({
+      name: b.name,
+      temp: b.base?.temp || b.temp || 'Cold',
+      baseId: b.base?.id || b.baseId || 'b1',
+      creamerId: b.creamer?.id || b.creamerId || 'c1',
+      syrupId: b.syrup?.id || b.syrupId || 's1'
+    }));
+  } catch (err) {
+    console.error('Failed to initialize app data', err);
+  }
+});
+
 const beverageName = ref('');
 const isIced = computed(() => tempState.selectedTemp === 'Cold');
 const creamerEnabled = computed(() => creamerState.selectedCreamerId !== 'c1');
 const syrupEnabled = computed(() => syrupState.selectedSyrupId !== 's1');
 
-const saveBeverage = () => {
+const selectedBase = computed(() => baseState.currentBase);
+const selectedCreamer = computed(() => creamerState.currentCreamer);
+const selectedSyrup = computed(() => syrupState.currentSyrup);
+
+const saveBeverage = async () => {
   if (!beverageName.value) return;
-  
-  savedBeveragesState.addBeverage({
-    name: beverageName.value,
-    temp: tempState.selectedTemp,
-    baseId: baseState.selectedBaseId,
-    creamerId: creamerState.selectedCreamerId,
-    syrupId: syrupState.selectedSyrupId
-  });
-  
+
+  // push to Firestore (store full objects for easier retrieval)
+  try {
+    await pushBeverageToFirestore(selectedBase.value, selectedCreamer.value, selectedSyrup.value, beverageName.value);
+    // refresh local saved list
+  const fetched: any[] = await fetchBeveragesFromFirestore();
+    savedBeveragesState.beverages = fetched.map(b => ({
+      name: b.name,
+      temp: b.base?.temp || b.temp || 'Cold',
+      baseId: b.base?.id || b.baseId || 'b1',
+      creamerId: b.creamer?.id || b.creamerId || 'c1',
+      syrupId: b.syrup?.id || b.syrupId || 's1'
+    }));
+  } catch (error) {
+    console.error('Failed to save beverage to Firestore', error);
+  }
+
   beverageName.value = '';
 };
 

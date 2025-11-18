@@ -1,7 +1,5 @@
 <template>
-      <div class="baseBeverage" v-if="currentBase?.id === 'b3'" :style="{backgroundColor: bases[2].color}"></div>
-      <div class="baseBeverage" v-else-if="currentBase?.id === 'b2'" :style="{backgroundColor: bases[1].color}"></div>
-      <div class="baseBeverage" v-else :style="{backgroundColor: bases[0].color}"></div>
+  <div class="baseBeverage" :style="{ backgroundColor: fillColor }"></div>
 </template>
 
 
@@ -9,8 +7,14 @@
 import { computed } from 'vue'
 import { baseStore } from "../stores/beverage";
 const baseState = baseStore();
-const currentBase = computed(() => baseState.currentBase);
 const bases = baseState.bases;
+const currentBase = computed(() => baseState.currentBase);
+
+const fillColor = computed(() => {
+  if (currentBase.value && currentBase.value.color) return currentBase.value.color;
+  if (bases && bases.length > 0) return bases[0].color;
+  return '#c6c6c6';
+});
 </script>
 
 <style scoped>

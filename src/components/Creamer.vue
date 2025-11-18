@@ -1,14 +1,5 @@
 <template>
-  <div class="froth" v-if="currentCreamer?.id === 'c1'" :style="{backgroundColor: creamers[0].color}">
-    <div v-for=" in 5" class="foam"></div>
-  </div>
-  <div class="froth" v-else-if="currentCreamer?.id === 'c2'" :style="{backgroundColor: creamers[1].color}">
-    <div v-for=" in 5" class="foam"></div>
-  </div>
-  <div class="froth" v-else-if="currentCreamer?.id === 'c3'" :style="{backgroundColor: creamers[2].color}">
-    <div v-for=" in 5" class="foam"></div>
-  </div>
-  <div class="froth" v-else="currentCreamer?.id === 'c4'" :style="{backgroundColor: creamers[3].color}">
+  <div class="froth" :style="{backgroundColor: fillColor}">
     <div v-for=" in 5" class="foam"></div>
   </div>
 </template>
@@ -17,8 +8,14 @@
 import { computed } from 'vue'
 import { creamerStore } from "../stores/beverage";
 const creamerState = creamerStore();
-const currentCreamer = computed(() => creamerState.currentCreamer);
 const creamers = creamerState.creamers;
+const currentCreamer = computed(() => creamerState.currentCreamer);
+
+const fillColor = computed(() => {
+  if (currentCreamer.value && currentCreamer.value.color) return currentCreamer.value.color;
+  if (creamers && creamers.length > 0) return creamers[0].color;
+  return '#c6c6c6';
+});
 </script>
 <style lang="scss" scoped>
 .froth {
