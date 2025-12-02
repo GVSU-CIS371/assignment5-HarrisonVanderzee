@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { initializeApp, FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import './styles/mug.scss'
 import App from './App.vue'
 
@@ -17,6 +18,7 @@ const firebaseConfig = {
 };
 const myapp: FirebaseApp = initializeApp(firebaseConfig);
 export const db: Firestore = getFirestore(myapp);
+export const auth = getAuth(myapp);
 
 createApp(App)
     .use(pinia)

@@ -82,19 +82,48 @@
           </label>
         </template>
       </div>
+      <Auth />
     </div>
 </template>
 
 <script setup lang="ts">
 import Beverage from "./components/Beverage.vue";
-import { ref, computed, onMounted } from 'vue'
+import Auth from "./components/Auth.vue";
+import { ref, computed, onMounted, watch } from 'vue'
 import { tempStore, baseStore, creamerStore, syrupStore, savedBeveragesStore, pushBeverageToFirestore, fetchBeveragesFromFirestore } from "./stores/beverage";
+import { BaseBeverageType, CreamerType, SyrupType } from "./stores/beverage";
+import { useAuthStore } from "./stores/authStore";
 
+const authStore = useAuthStore();
 const tempState = tempStore();
 const baseState = baseStore();
 const creamerState = creamerStore();
 const syrupState = syrupStore();
 const savedBeveragesState = savedBeveragesStore();
+
+authStore.initAuth();
+watch(() => authStore.user, async (newUser) => {
+  if (newUser) {
+    await loadUserBeverages(newUser.uid);
+  } else {
+    savedBeveragesState.beverages = [];
+  }
+});
+
+const loadUserBeverages = async (userId: string) => {
+  try {
+    const fetched: any[] = await fetchBeveragesFromFirestore(userId);
+    savedBeveragesState.beverages = fetched.map(b => ({
+      name: b.name,
+      temp: b.base?.temp || b.temp || 'Cold',
+      baseId: b.base?.id || b.baseId || 'b1',
+      creamerId: b.creamer?.id || b.creamerId || 'c1',
+      syrupId: b.syrup?.id || b.syrupId || 's1'
+    }));
+  } catch (err) {
+    console.error('Failed to load user beverages', err);
+  }
+};
 
 // load collections and saved beverages when app mounts
 onMounted(async () => {
@@ -105,15 +134,10 @@ onMounted(async () => {
       syrupState.loadSyrups(),
     ]);
 
-  const fetched: any[] = await fetchBeveragesFromFirestore();
-    // replace local saved beverages with fetched list
-    savedBeveragesState.beverages = fetched.map(b => ({
-      name: b.name,
-      temp: b.base?.temp || b.temp || 'Cold',
-      baseId: b.base?.id || b.baseId || 'b1',
-      creamerId: b.creamer?.id || b.creamerId || 'c1',
-      syrupId: b.syrup?.id || b.syrupId || 's1'
-    }));
+    // Load beverages if user is already signed in
+    if (authStore.user) {
+      await loadUserBeverages(authStore.user.uid);
+    }
   } catch (err) {
     console.error('Failed to initialize app data', err);
   }
@@ -124,25 +148,33 @@ const isIced = computed(() => tempState.selectedTemp === 'Cold');
 const creamerEnabled = computed(() => creamerState.selectedCreamerId !== 'c1');
 const syrupEnabled = computed(() => syrupState.selectedSyrupId !== 's1');
 
-const selectedBase = computed(() => baseState.currentBase);
-const selectedCreamer = computed(() => creamerState.currentCreamer);
-const selectedSyrup = computed(() => syrupState.currentSyrup);
+const selectedBase = computed<BaseBeverageType | undefined>(() => baseState.currentBase);
+const selectedCreamer = computed<CreamerType | undefined>(() => creamerState.currentCreamer);
+const selectedSyrup = computed<SyrupType | undefined>(() => syrupState.currentSyrup);
 
 const saveBeverage = async () => {
   if (!beverageName.value) return;
+  
+  if (!authStore.user) {
+    alert('Please sign in to save beverages');
+    return;
+  }
 
-  // push to Firestore (store full objects for easier retrieval)
   try {
-    await pushBeverageToFirestore(selectedBase.value, selectedCreamer.value, selectedSyrup.value, beverageName.value);
-    // refresh local saved list
-  const fetched: any[] = await fetchBeveragesFromFirestore();
-    savedBeveragesState.beverages = fetched.map(b => ({
-      name: b.name,
-      temp: b.base?.temp || b.temp || 'Cold',
-      baseId: b.base?.id || b.baseId || 'b1',
-      creamerId: b.creamer?.id || b.creamerId || 'c1',
-      syrupId: b.syrup?.id || b.syrupId || 's1'
-    }));
+    if (!selectedBase.value || !selectedCreamer.value || !selectedSyrup.value) {
+      console.error('Cannot save beverage -- one of base/creamer/syrup is not selected');
+      return;
+    }
+
+    await pushBeverageToFirestore(
+      selectedBase.value, 
+      selectedCreamer.value, 
+      selectedSyrup.value, 
+      beverageName.value,
+      authStore.user.uid
+    );
+    
+    await loadUserBeverages(authStore.user.uid);
   } catch (error) {
     console.error('Failed to save beverage to Firestore', error);
   }

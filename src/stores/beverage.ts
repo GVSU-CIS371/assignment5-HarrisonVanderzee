@@ -65,22 +65,40 @@ export async function initializeFirestoreData() {
   }
 }
 
-export async function pushBeverageToFirestore(base: BaseBeverageType, creamer: CreamerType, syrup: SyrupType, name: string): Promise<string> {
-  // Replaces whitespaces in name with underscores to create a valid document ID
-  const docId = name.replace(/\s+/g, '_');
+export async function pushBeverageToFirestore(
+  base: BaseBeverageType,
+  creamer: CreamerType,
+  syrup: SyrupType,
+  name: string,
+  userId?: string
+): Promise<string> {
+  const docId: string = (name || '').trim().replace(/\s+/g, '_');
+  
+  if (userId) {
+    const beverageDoc = doc(db, "users", userId, "beverages", docId);
+    await setDoc(beverageDoc, {
+      base: base as BaseBeverageType,
+      creamer: creamer as CreamerType,
+      syrup: syrup as SyrupType,
+      name: name as string
+    });
+  } else {
     const beverageDoc = doc(db, "beverages", docId);
     await setDoc(beverageDoc, {
-      base,
-      creamer,
-      syrup,
-      name
+      base: base as BaseBeverageType,
+      creamer: creamer as CreamerType,
+      syrup: syrup as SyrupType,
+      name: name as string
     });
-    return docId;
+  }
+  return docId;
 }
 
-export async function fetchBeveragesFromFirestore() {
+export async function fetchBeveragesFromFirestore(userId?: string) {
   const beverages: any[] = [];
-  const beveragesCollection: CollectionReference = collection(db, "beverages");
+  const beveragesCollection: CollectionReference = userId 
+    ? collection(db, "users", userId, "beverages")
+    : collection(db, "beverages");
 
   const qs: QuerySnapshot = await getDocs(beveragesCollection);
   qs.forEach((qd: QueryDocumentSnapshot) => {
@@ -93,8 +111,8 @@ export async function fetchBeveragesFromFirestore() {
       syrup: data.syrup,
     });
   });
-    console.log(beverages);
-    return beverages;
+  console.log(beverages);
+  return beverages;
 }
 
 export async function fetchBasesFromFirestore(): Promise<BaseBeverageType[]> {
@@ -275,7 +293,7 @@ export const savedBeverages = defineStore('savedBeverages', {
       return (name: string) => state.beverages.find((beverage) => beverage.name === name)
     }
   },
-  
+
   actions: {
     addBeverage(beverage: SavedBeverage) {
       this.beverages.push(beverage)
